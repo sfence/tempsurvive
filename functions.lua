@@ -107,11 +107,12 @@ tempsurvive.get_bio_temperature=function(pos)
 	local l=minetest.get_node_light(pos) or 0
 
 	local temp=minetest.get_perlin(tempsurvive.perlin):get2d({x=p.x,y=p.z})-40
-
+  
 	if temp>0 then
 		return temp+((l*0.025)*temp)
 	else
-		return temp,temp+(l*0.1)
+		--return temp,temp+(l*0.1)
+		return temp+(l*0.1)
 	end
 end
 
