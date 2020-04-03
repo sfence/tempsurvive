@@ -101,13 +101,42 @@ tempsurvive.spread_temperature=function(target_pos,pos,add,rad)
 	return 0
 end
 
+-- added by SFENCE
+local function get_windy(pos)
+  local l_night = minetest.get_node_light(pos, 0);
+  local l_day = minetest.get_node_light(pos, 0.5);
+  
+  if (l_night~=l_day) and (l_night>=2) then
+    -- direction wind is comming from, should be checked
+    local pos_wind = weather.get_wind(pos);
+    local wind_speed = math.sqrt(pos_wind.x*pos_wind.x+pos_wind.z*pos_wind.z);
+    
+    local pos1 = table.copy(pos);
+    local pos2 = {x=pos.x-pos_wind.x,y=pos.y,z=pos.z-pos_wind.z};
+    
+    clear, block_pos = minetest.line_of_sight(pos1, pos2);
+    
+    -- check if position have access to clouds
+    
+    if (clear==true) then
+      return wind_speed;
+    end
+    
+    block_pos.x = block_pos.x - pos1.x;
+    block_pos.z = block_pos.z - pos1.z;
+    return math.sqrt(block_pos.x*block_pos.x+block_pos.y*block_pos.y);
+  end
+  
+  return 0;
+end
+
 tempsurvive.get_bio_temperature=function(pos)
 	if pos.y<-50 then return 0 end
 	local p={x=math.floor(pos.x),y=0,z=math.floor(pos.z)}
 	local l=minetest.get_node_light(pos) or 0
 
 	local temp=minetest.get_perlin(tempsurvive.perlin):get2d({x=p.x,y=p.z})-40
-  
+   
 	if temp>0 then
 		return temp+((l*0.025)*temp)
 	else
@@ -130,6 +159,22 @@ tempsurvive.get_artificial_temperature=function(pos,temp)
 		temp=temp+tempsurvive.spread_temperature(pos,no,add,rad)
 	end
 	return temp
+end
+
+-- added by SFENCE
+tempsurvive.get_feels_temperature=function(pos,temp)
+  -- for surface nodes, wind effects
+  local pos_wind = get_windy(pos);
+  if (pos_wind>0) then
+  end
+  
+  local pos_humidity = minetest.get_humidity(pos);
+  
+  -- Australian Apparent Temperature
+  local e = (pos_humidity/100)*6.105*math.exp((17.27*temp)/(237.7+temp));
+  local at = temp + 0.33*e - 0.7*pos_wind - 4;
+  
+  return at;
 end
 
 minetest.register_globalstep(function(dtime)
