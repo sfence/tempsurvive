@@ -40,6 +40,10 @@ tempsurvive={
 	}
 }
 
+tempsurvive.temp_model_file = minetest.setting_get("tempsurvive_temp_model_file");
+
+dofile(minetest.get_modpath("tempsurvive") .. "/callback.lua")
+dofile(minetest.get_modpath("tempsurvive") .. "/model.lua")
 dofile(minetest.get_modpath("tempsurvive") .. "/functions.lua")
 dofile(minetest.get_modpath("tempsurvive") .. "/nodes_items.lua")
 
@@ -72,3 +76,4 @@ minetest.after(0.1, function()
 		tempsurvive.nodes[ii]=nil
 	end
 end)
+

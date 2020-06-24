@@ -406,7 +406,8 @@ minetest.register_node("tempsurvive:thermometer", {
 	},
 	on_use=function(itemstack, user, pointed_thing)
 		local pos=pointed_thing.above or user:get_pos()
-		local temp=tempsurvive.get_bio_temperature(pos)
+		local temp=tempsurvive.get_avarage_temperature(pos)
+		--local temp=tempsurvive.get_bio_temperature(pos)
 		temp=tempsurvive.get_artificial_temperature(pos,temp)
 		minetest.chat_send_player(user:get_player_name(), math.floor(temp*10)*0.1)
 	end,

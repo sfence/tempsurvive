@@ -102,6 +102,7 @@ tempsurvive.spread_temperature=function(target_pos,pos,add,rad)
 end
 
 -- added by SFENCE
+-- calculate wind speed on location
 local function get_windy(pos)
   local l_night = minetest.get_node_light(pos, 0);
   local l_day = minetest.get_node_light(pos, 0.5);
@@ -130,19 +131,70 @@ local function get_windy(pos)
   return 0;
 end
 
+-- added by SFENCE, return long time (year) avarage temperature on positon, level 0
+tempsurvive.get_avarage_temperature=function(pos)
+	local p={x=math.floor(pos.x),y=0,z=math.floor(pos.z)}
+	local temp = minetest.get_perlin(tempsurvive.perlin):get2d({x=p.x,y=p.z})-40
+  
+  return temp;
+end
+
+-- update by SFENCE to reflect temp changes by amplitude
 tempsurvive.get_bio_temperature=function(pos)
 	if pos.y<-50 then return 0 end
 	local p={x=math.floor(pos.x),y=0,z=math.floor(pos.z)}
 	local l=minetest.get_node_light(pos) or 0
-
-	local temp=minetest.get_perlin(tempsurvive.perlin):get2d({x=p.x,y=p.z})-40
+  
+	local temp=minetest.get_perlin(tempsurvive.perlin):get2d({x=p.x,y=p.z})-40  
+  local actual_temp, shorttime_temp, longtime_temp = tempsurvive.callback_get_temperatures(pos);
+  
+  if (pos.y>=0) then
+    actual_temp = actual_temp*tempsurvive.temp_model.altitude_temp.lin_coef;
+    actual_ratio, altitude_ratio = tempsurvive.temp_model.altitude_temp.callback(pos.y);
+    temp = temp - tempsurvive.temp_model.altitude_temp.const_temp*altitude_ratio + actual_temp*actual_ratio;
+  else
+    -- three temp ratiio?
+    -- avarage_longtime (year)
+    -- avarage_shorttime (month)
+    -- actual
+    actual_ratio, shorttime_ratio, longtime_ratio = tempsurvive.temp_model.undergound_temp.callback(pos.y);
+    temp = actual_ration*actual_temp + shorttime_ration*shortime_temp + longtimeration*longtime_temp;
+    
+    -- temp up by preasure of rock
+    temp = temp + pos.y*tempsurvive.undergound_temp.lin_coef;
+    
+  end
+	
+  local now_light = minetest.get_node_light(pos) or 0
+  local midday_light = minetest.get_node_light(pos, 0.5) or 0
+  local midnight_light = minetest.get_node_light(pos, 0) or 0
+  
+  if (midday_light>midnight_light) then
+    if (now_light>tempsurvive.temp_model.moon_light) then
+      local sun_light_lin_coef = tempsurvive.temp_model.sun_light_lin_coef;
+      if (tempsurvive.temp_model.sun_light_lin_coef_callback~=nil) then
+        sun_light_lin_coef = tempsurvive.temp_model.sun_light_lin_coef_callback();
+      end
+      
+      temp = temp + (now_light-tempsurvive.temp_model.moon_light)*sun_light_lin_coef;
+    end
+  end
+  
+  if (now_light>0) then
+    if (now_light>midnight_light) then
+      now_light = midnight_light;
+    end
+    temp = temp + now_light*tempsurvive.temp_model.nosun_light_lin_coef;
+  end
+  
+  return temp;
    
-	if temp>0 then
-		return temp+((l*0.025)*temp)
-	else
-		--return temp,temp+(l*0.1)
-		return temp+(l*0.1)
-	end
+	--if temp>0 then
+	--	return temp+((l*0.025)*temp)
+	--else
+	--	--return temp,temp+(l*0.1)
+	--	return temp+(l*0.1)
+	--end
 end
 
 tempsurvive.get_artificial_temperature=function(pos,temp)
@@ -162,13 +214,15 @@ tempsurvive.get_artificial_temperature=function(pos,temp)
 end
 
 -- added by SFENCE
-tempsurvive.get_feels_temperature=function(pos,temp)
+-- calculate feels like temperature
+tempsurvive.get_feels_temperature=function(pos, temp)
   -- for surface nodes, wind effects
   local pos_wind = get_windy(pos);
   if (pos_wind>0) then
   end
   
   local pos_humidity = minetest.get_humidity(pos);
+  pos_humidity = tempsurvive.callback_get_humidity(pos, pos_humidity);
   
   -- Australian Apparent Temperature
   local e = (pos_humidity/100)*6.105*math.exp((17.27*temp)/(237.7+temp));
